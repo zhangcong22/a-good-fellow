@@ -182,9 +182,12 @@ revision of the user's personal instructions used to write the text:
   target repository's commit.
 - `<full model name and version>`: the exact model used for this comment, including
   its variant and version when the runtime exposes them (for example, `GPT 5.6 Sol`
-  or `Claude Opus 5.5`). Take it from the current model/runtime identity; never infer
-  it from the CLI name, a configured default, or the target repository. If the exact
-  version is unavailable, say `AI model version unavailable` instead of guessing.
+  or `Claude Opus 5.5`). Take it from the current model/runtime identity. When the
+  scheduled runner provides `Runtime model identity for this attempt`, that value is
+  authoritative because it is bound to the selected fallback attempt; use it exactly.
+  Never infer a model from the CLI name, an unbound configured default, or the target
+  repository. If the exact version is unavailable, say `AI model version unavailable`
+  instead of guessing.
 - `<word count>`: an approximate word count of the cached instructions actually read
   for this task (`~/.good-fellow/instruction.md`, conventions §1) — exact precision is
   not needed:

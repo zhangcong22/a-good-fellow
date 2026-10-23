@@ -416,6 +416,14 @@ fi
 case "$AGENT" in claude|codex|cursor) ;; *) log "FATAL: invalid GOOD_FELLOW_AGENT: $AGENT"; exit 64 ;; esac
 log "agent CLI: $AGENT"
 
+model_label_for() {
+  case "$1" in
+    claude) printf '%s' "${GOOD_FELLOW_CLAUDE_MODEL_LABEL:-}" ;;
+    codex)  printf '%s' "${GOOD_FELLOW_CODEX_MODEL_LABEL:-}" ;;
+    cursor) printf '%s' "${GOOD_FELLOW_CURSOR_MODEL_LABEL:-}" ;;
+  esac
+}
+
 PROMPT="You are running an unattended good-fellow sweep on behalf of the user.
 
 $MAINTENANCE_NOTE
@@ -464,14 +472,31 @@ TIMEOUT_CMD=$(timeout_cmd_for "$MAX_RUNTIME")
 # both outside REPO_DIR; without it those writes are blocked and nobody is present to
 # approve them, so the run would fail silently.
 run_agent() {
-  case "$1" in
-    claude) $TIMEOUT_CMD claude -p "$PROMPT" --add-dir "$HOME" \
+  local agent="$1" agent_prompt model_id model_label
+  local -a model_args=()
+  model_label=$(model_label_for "$agent")
+  agent_prompt="$PROMPT"
+  if [ -n "$model_label" ]; then
+    agent_prompt="$agent_prompt
+
+Runtime model identity for this attempt: $model_label. Use exactly this label in every
+good-fellow visible signature produced by this attempt; it was supplied by the runner
+that selected the agent, so do not replace it with 'AI model version unavailable'."
+  fi
+  case "$agent" in
+    claude)
+      model_id="${GOOD_FELLOW_CLAUDE_MODEL:-${ANTHROPIC_MODEL:-}}"
+      [ -z "$model_id" ] || model_args=(--model "$model_id")
+      $TIMEOUT_CMD claude -p "$agent_prompt" "${model_args[@]}" --add-dir "$HOME" \
               --disable-slash-commands \
               --allowedTools Bash Read Grep Glob Write Edit MultiEdit TodoWrite 9>&- ;;
-    codex)  CODEX_HOME="$DEPLOY_DIR/codex-home" $TIMEOUT_CMD codex exec \
+    codex)
+      model_id="${GOOD_FELLOW_CODEX_MODEL:-}"
+      [ -z "$model_id" ] || model_args=(--model "$model_id")
+      CODEX_HOME="$DEPLOY_DIR/codex-home" $TIMEOUT_CMD codex exec \
               --ignore-user-config --ephemeral --dangerously-bypass-approvals-and-sandbox \
-              "$PROMPT" 9>&- ;;
-    cursor) $TIMEOUT_CMD cursor-agent --print --force "$PROMPT" 9>&- ;;
+              "${model_args[@]}" "$agent_prompt" 9>&- ;;
+    cursor) $TIMEOUT_CMD cursor-agent --print --force "$agent_prompt" 9>&- ;;
   esac
 }
 
